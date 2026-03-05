@@ -1,7 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { BiologicalDetection } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY is not defined");
+    }
+    aiInstance = new GoogleGenAI({ apiKey: apiKey || "" });
+  }
+  return aiInstance;
+}
 
 const detectionSchema = {
   type: Type.OBJECT,
@@ -38,6 +49,7 @@ const detectionSchema = {
 };
 
 export async function detectOrganism(base64Image: string): Promise<BiologicalDetection> {
+  const ai = getAI();
   const model = "gemini-3-flash-preview";
   
   const response = await ai.models.generateContent({

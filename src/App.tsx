@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Webcam from 'react-webcam';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Camera, 
   RefreshCw, 
@@ -25,6 +25,14 @@ const videoConstraints = {
   facingMode: "environment"
 };
 
+// Fallback for crypto.randomUUID
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+};
+
 export default function App() {
   const webcamRef = useRef<Webcam>(null);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -33,22 +41,27 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [hasRuntimeError, setHasRuntimeError] = useState(false);
 
   // Load history from local storage
   useEffect(() => {
-    const savedHistory = localStorage.getItem('biolens_history');
-    if (savedHistory) {
-      try {
+    try {
+      const savedHistory = localStorage.getItem('biolens_history');
+      if (savedHistory) {
         setHistory(JSON.parse(savedHistory));
-      } catch (e) {
-        console.error("Failed to parse history", e);
       }
+    } catch (e) {
+      console.error("Failed to parse history", e);
     }
   }, []);
 
   // Save history to local storage
   useEffect(() => {
-    localStorage.setItem('biolens_history', JSON.stringify(history));
+    try {
+      localStorage.setItem('biolens_history', JSON.stringify(history));
+    } catch (e) {
+      console.error("Failed to save history", e);
+    }
   }, [history]);
 
   const capture = useCallback(async () => {
@@ -67,7 +80,7 @@ export default function App() {
       setResult(detection);
       
       const newItem: DetectionHistoryItem = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         timestamp: Date.now(),
         image: imageSrc,
         result: detection
@@ -86,6 +99,24 @@ export default function App() {
     setCapturedImage(null);
     setError(null);
   };
+
+  if (hasRuntimeError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-red-50">
+        <div className="text-center">
+          <X size={48} className="text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-red-700 mb-2">Terjadi Kesalahan</h1>
+          <p className="text-red-600">Aplikasi mengalami kendala saat memuat. Silakan muat ulang halaman.</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-red-600 text-white rounded-full font-semibold"
+          >
+            Muat Ulang
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-bio-light">
@@ -119,6 +150,7 @@ export default function App() {
                 screenshotFormat="image/jpeg"
                 videoConstraints={videoConstraints}
                 className="w-full h-full object-cover"
+                onUserMediaError={() => setError("Gagal mengakses kamera. Pastikan izin kamera telah diberikan.")}
               />
               <div className="absolute inset-0 border-[20px] border-black/20 pointer-events-none">
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white/60"></div>
