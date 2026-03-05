@@ -1,0 +1,5 @@
+{
+  "name": "BioLens AI",
+  "description": "A smart biology detection camera that identifies plants, animals, and insects using Gemini AI.",
+  "requestFramePermissions": ["camera"]
+}
